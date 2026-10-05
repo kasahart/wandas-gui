@@ -69,5 +69,18 @@ test('canonical source, attribution and sync tool are pinned together across fil
     const changedTool = run('--check', into);
     assert.notEqual(changedTool.status, 0);
     assert.match(changedTool.stderr, /sync tool changed/);
+    git(producer, 'remote', 'set-url', 'origin', 'https://github.com/kasahart/wandas-gui.git');
+    const nextTool = readFileSync(originalTool, 'utf8')
+      .replace("'NOTICE.md': 'NOTICE.md'", "'NOTICE.md': 'NOTICE.md', 'extra.txt': 'extra.txt'")
+      .replace('repository, commit, path:', 'schemaVersion: 2, repository, commit, path:');
+    writeFileSync(join(producer, 'scripts/sync-gui-core.mjs'), nextTool);
+    writeFileSync(join(producer, 'extra.txt'), 'New managed file\n');
+    git(producer, 'add', '.');
+    git(producer, 'commit', '-qm', 'Upgrade canonical managed files and provenance schema');
+    const upgraded = run('--from', producer, '--into', into);
+    assert.equal(upgraded.status, 0, upgraded.stderr);
+    assert.equal(readFileSync(join(consumer, into, 'extra.txt'), 'utf8'), 'New managed file\n');
+    assert.equal(JSON.parse(readFileSync(join(consumer, into, 'upstream.json'), 'utf8')).schemaVersion, 2);
+    assert.equal(run('--check', into).status, 0);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

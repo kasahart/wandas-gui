@@ -39,8 +39,13 @@ if (process.argv.includes('--check')) {
   const commit = git('rev-parse', 'HEAD').toString().trim();
   if (git('status', '--porcelain', '--', ...Object.values(files), toolPath).toString().trim())
     throw new Error('Commit the canonical source and tool before syncing');
-  const blobs = Object.fromEntries(Object.entries(files).map(([file, path]) => [file, git('show', `${commit}:${path}`)]));
   const tool = git('show', `${commit}:${toolPath}`);
+  if (!readFileSync(thisTool).equals(tool)) {
+    writeFileSync(thisTool, tool);
+    execFileSync(process.execPath, [thisTool, ...process.argv.slice(2)], { stdio: 'inherit' });
+    process.exit(0);
+  }
+  const blobs = Object.fromEntries(Object.entries(files).map(([file, path]) => [file, git('show', `${commit}:${path}`)]));
   const sha256 = Object.fromEntries(Object.entries(blobs).map(([file, bytes]) => [file, hash(bytes)]));
   mkdirSync(destination, { recursive: true });
   for (const [file, bytes] of Object.entries(blobs)) writeFileSync(join(destination, file), bytes);
