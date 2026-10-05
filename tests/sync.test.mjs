@@ -34,6 +34,7 @@ test('canonical source, attribution and sync tool are pinned together across fil
     writeFileSync(join(producer, 'NOTICE.md'), 'Attribution fixture\r\n');
     git(producer, 'add', '.');
     git(producer, 'commit', '-qm', 'Canonical fixture');
+    git(producer, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
     const run = (...args) => spawnSync(process.execPath, [tool, ...args], { cwd: consumer, encoding: 'utf8' });
     const into = 'packages/wandas-gui-core';
     const synced = run('--from', producer, '--into', into);
@@ -41,10 +42,12 @@ test('canonical source, attribution and sync tool are pinned together across fil
     assert.equal(readFileSync(join(consumer, into, 'index.ts'), 'utf8'), bytes);
     assert.equal(readFileSync(join(consumer, into, 'LICENSE.md'), 'utf8'), 'License fixture\n');
     assert.equal(run('--check', into).status, 0);
-    writeFileSync(join(consumer, '.gitattributes'), 'packages/wandas-gui-core/** -text\nscripts/sync-gui-core.mjs -text\n');
+    writeFileSync(join(consumer, '.gitattributes'), 'packages/wandas-gui-core/** text eol=lf\nscripts/sync-gui-core.mjs text eol=lf\n');
     init(consumer);
     git(consumer, 'add', '.');
     git(consumer, 'commit', '-qm', 'Consumer fixture');
+    writeFileSync(join(consumer, into, 'index.ts'), bytes.replaceAll('\n', '\r\n'));
+    assert.equal(run('--check', into).status, 0);
     rmSync(join(consumer, 'packages'), { recursive: true });
     git(consumer, 'restore', 'packages');
     assert.equal(run('--check', into).status, 0);
@@ -69,5 +72,22 @@ test('canonical source, attribution and sync tool are pinned together across fil
     const changedTool = run('--check', into);
     assert.notEqual(changedTool.status, 0);
     assert.match(changedTool.stderr, /sync tool changed/);
+    git(producer, 'remote', 'set-url', 'origin', 'https://github.com/kasahart/wandas-gui.git');
+    const nextTool = readFileSync(originalTool, 'utf8')
+      .replace("'NOTICE.md': 'NOTICE.md'", "'NOTICE.md': 'NOTICE.md', 'extra.txt': 'extra.txt'")
+      .replace('repository, commit, path:', 'schemaVersion: 2, repository, commit, path:');
+    writeFileSync(join(producer, 'scripts/sync-gui-core.mjs'), nextTool);
+    writeFileSync(join(producer, 'extra.txt'), 'New managed file\n');
+    git(producer, 'add', '.');
+    git(producer, 'commit', '-qm', 'Upgrade canonical managed files and provenance schema');
+    const unpublished = run('--from', producer, '--into', into);
+    assert.notEqual(unpublished.status, 0);
+    assert.match(unpublished.stderr, /Push the canonical commit/);
+    git(producer, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    const upgraded = run('--from', producer, '--into', into);
+    assert.equal(upgraded.status, 0, upgraded.stderr);
+    assert.equal(readFileSync(join(consumer, into, 'extra.txt'), 'utf8'), 'New managed file\n');
+    assert.equal(JSON.parse(readFileSync(join(consumer, into, 'upstream.json'), 'utf8')).schemaVersion, 2);
+    assert.equal(run('--check', into).status, 0);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

@@ -64,18 +64,23 @@ Until a package distribution is requested, consumers may check in the tiny sourc
 snapshot plus LICENSE/NOTICE. The shared tool itself is pinned with the source:
 
 ```sh
-# Inside a consumer checkout; use a clean, committed wandas-gui checkout.
+# Inside a consumer checkout; use a clean, committed and pushed wandas-gui checkout.
 node scripts/sync-gui-core.mjs --from /path/to/wandas-gui --into packages/wandas-gui-core
 node scripts/sync-gui-core.mjs --check packages/wandas-gui-core
 ```
 
 Analyzer uses `src/shared/gui-core` as its destination. On initial adoption, copy
 `scripts/sync-gui-core.mjs` from this repository into the consumer's scripts folder.
-Sync validates the canonical origin/root, reads committed Git blobs, copies
+Push the canonical commit (or fetch its published origin branch) before syncing.
+Sync validates the canonical origin/root and reachability from an origin remote
+tracking branch, reads committed Git blobs, copies
 `src/index.ts`, LICENSE/NOTICE and the tool, and records the exact commit/SHA256s.
-Checks are offline and detect edits to source, attribution or the copied tool.
+Checks are offline and detect edits to source, attribution or the copied tool,
+allowing only CRLF/LF differences in these UTF-8 text files. If the canonical tool
+changes, sync reloads it before generating the snapshot and provenance.
 Mark snapshot files and the copied tool `-text` in consumer `.gitattributes` to
-preserve byte-exact hashes across line-ending filters. Consumer-local package
+preserve bytes on new checkouts; existing CRLF files also pass the text-normalized
+hash check. Consumer-local package
 manifests and product adapters are not part of the vendored source.
 
 Update the kernel/tool here, then explicitly re-sync and test both consumers.
