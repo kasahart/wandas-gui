@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFileSync, spawnSync } from 'node:child_process';
+const originalTool = fileURLToPath(new URL('../scripts/sync-gui-core.mjs', import.meta.url));
+
+test('canonical source, attribution and sync tool are pinned together across filtered checkouts', () => {
+  const root = mkdtempSync(join(tmpdir(), 'wandas-gui-sync-'));
+  try {
+    const producer = join(root, 'Producer checkout_日本');
+    const consumer = join(root, 'Consumer checkout_日本');
+    mkdirSync(join(producer, 'src'), { recursive: true });
+    mkdirSync(join(producer, 'scripts'), { recursive: true });
+    mkdirSync(join(consumer, 'scripts'), { recursive: true });
+    const tool = join(consumer, 'scripts/sync-gui-core.mjs');
+    copyFileSync(originalTool, tool);
+    copyFileSync(originalTool, join(producer, 'scripts/sync-gui-core.mjs'));
+    const git = (repo, ...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
+    function init(repo) {
+      git(repo, 'init', '-q');
+      git(repo, 'config', 'user.name', 'GUI core test');
+      git(repo, 'config', 'user.email', 'gui-core-test@example.invalid');
+      git(repo, 'config', 'commit.gpgsign', 'false');
+      git(repo, 'config', 'core.autocrlf', 'true');
+    }
+    init(producer);
+    git(producer, 'remote', 'add', 'origin', 'https://github.com/kasahart/wandas-gui.git');
+    const bytes = 'export const value = 1;\n';
+    writeFileSync(join(producer, 'src/index.ts'), bytes.replaceAll('\n', '\r\n'));
+    writeFileSync(join(producer, 'LICENSE.md'), 'License fixture\r\n');
+    writeFileSync(join(producer, 'NOTICE.md'), 'Attribution fixture\r\n');
+    git(producer, 'add', '.');
+    git(producer, 'commit', '-qm', 'Canonical fixture');
+    const run = (...args) => spawnSync(process.execPath, [tool, ...args], { cwd: consumer, encoding: 'utf8' });
+    const into = 'packages/wandas-gui-core';
+    const synced = run('--from', producer, '--into', into);
+    assert.equal(synced.status, 0, synced.stderr);
+    assert.equal(readFileSync(join(consumer, into, 'index.ts'), 'utf8'), bytes);
+    assert.equal(readFileSync(join(consumer, into, 'LICENSE.md'), 'utf8'), 'License fixture\n');
+    assert.equal(run('--check', into).status, 0);
+    writeFileSync(join(consumer, '.gitattributes'), 'packages/wandas-gui-core/** -text\nscripts/sync-gui-core.mjs -text\n');
+    init(consumer);
+    git(consumer, 'add', '.');
+    git(consumer, 'commit', '-qm', 'Consumer fixture');
+    rmSync(join(consumer, 'packages'), { recursive: true });
+    git(consumer, 'restore', 'packages');
+    assert.equal(run('--check', into).status, 0);
+    writeFileSync(join(producer, 'src/index.ts'), bytes + '// dirty\n');
+    const dirty = run('--from', producer, '--into', into);
+    assert.notEqual(dirty.status, 0);
+    assert.match(dirty.stderr, /Commit the canonical/);
+    git(producer, 'restore', 'src/index.ts');
+    const wrongPath = run('--from', join(producer, 'src'), '--into', into);
+    assert.notEqual(wrongPath.status, 0);
+    assert.match(wrongPath.stderr, /canonical repository root/);
+    git(producer, 'remote', 'set-url', 'origin', 'https://github.com/other/wandas-gui.git');
+    const wrongOrigin = run('--from', producer, '--into', into);
+    assert.notEqual(wrongOrigin.status, 0);
+    assert.match(wrongOrigin.stderr, /Source origin must be/);
+    writeFileSync(join(consumer, into, 'NOTICE.md'), '// edited\n');
+    const changed = run('--check', into);
+    assert.notEqual(changed.status, 0);
+    assert.match(changed.stderr, /NOTICE.md/);
+    git(consumer, 'restore', 'packages');
+    writeFileSync(tool, readFileSync(tool, 'utf8') + '\n// edited tool\n');
+    const changedTool = run('--check', into);
+    assert.notEqual(changedTool.status, 0);
+    assert.match(changedTool.stderr, /sync tool changed/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

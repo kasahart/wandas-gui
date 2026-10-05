@@ -2,6 +2,43 @@
   "name": "@wandas/gui-core",
   "version": "0.0.0",
   "private": true,
-  "exports": {".": "./index.ts"},
-  "dependencies": {}
+  "description": "Framework-independent Wandas GUI raster pooling and palette kernel",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kasahart/wandas-gui.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "LICENSE.md",
+    "NOTICE.md",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "verify": "npm run build && npm run test:types && npm test",
+    "test:types": "tsc -p tsconfig.tests.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
 }

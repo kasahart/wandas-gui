@@ -1,0 +1,4 @@
+src/index.ts -text
+LICENSE.md -text
+NOTICE.md -text
+scripts/sync-gui-core.mjs -text
