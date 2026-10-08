@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { rasterize, normalizedColor, blue, viridis } from '@wandas/gui-core';
+import { rasterize, normalizedColor, blue, viridis, magma } from '@wandas/gui-core';
 const require = createRequire(import.meta.url);
 const plan = { columns: [[0, 1], [1, 2]], rows: [[0, 1], [1, 2]] };
 const limits = { min: -100, max: 0 };
@@ -63,6 +63,19 @@ test('palette rounding and normalized endpoints are stable', () => {
   assert.deepEqual(normalizedColor(0.125, blue), [15, 37, 68]);
   assert.deepEqual(normalizedColor(0.125, viridis), [63, 41, 111]);
 });
+test('magma endpoints and midpoint retain the Matplotlib five-stop palette', () => {
+  assert.deepEqual(normalizedColor(0, magma), [0, 0, 4]);
+  assert.deepEqual(normalizedColor(0.5, magma), [183, 55, 121]);
+  assert.deepEqual(normalizedColor(1, magma), [252, 253, 191]);
+  assert.deepEqual(normalizedColor(0.25, magma), [81, 18, 124]);
+  assert.deepEqual(normalizedColor(0.75, magma), [252, 137, 97]);
+  assert.deepEqual(normalizedColor(0.125, magma), [40, 9, 64]);
+});
+test('magma raster pixels use the same colors as normalizedColor', () => {
+  const source = { layout: 'flat', values: [-100, -50, 0], bins: 1 };
+  const result = rasterize(source, { columns: [[0, 1], [1, 2], [2, 3]], rows: [[0, 1]] }, limits, magma);
+  assert.deepEqual([...result.pixels], [0, 0, 4, 255, 183, 55, 121, 255, 252, 253, 191, 255]);
+});
 test('empty shapes and invalid destinations are explicit', () => {
   const source = { layout: 'flat', values: [], bins: 0 };
   assert.equal(rasterize(source, { columns: [], rows: [] }, limits, blue).pixels.length, 0);
@@ -73,5 +86,6 @@ test('ESM and CommonJS package entrypoints expose identical behavior', () => {
   const cjs = require('@wandas/gui-core');
   const source = { layout: 'flat', values: [-100, 0, -50, -75], bins: 2 };
   assert.deepEqual(cjs.rasterize(source, plan, limits, cjs.blue), rasterize(source, plan, limits, blue));
-  assert.deepEqual(Object.keys(cjs).sort(), ['blue', 'normalizedColor', 'rasterize', 'viridis']);
+  assert.deepEqual(cjs.normalizedColor(0.5, cjs.magma), normalizedColor(0.5, magma));
+  assert.deepEqual(Object.keys(cjs).sort(), ['blue', 'magma', 'normalizedColor', 'rasterize', 'viridis']);
 });
