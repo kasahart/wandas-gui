@@ -55,7 +55,7 @@ and dBFS are distinct. The kernel does not convert one quantity/reference into
 another. Finite pooling skips nonfinite samples; `peakMode: 'comparison'` retains
 Analyzer's legacy comparison behavior. `floor` excludes values at/below the
 specified floor. Constant ranges use the lower color; nonfinite normalized limits
-retain legacy opaque-black behavior. `blue` rounds channels; `viridis` floors them.
+retain legacy opaque-black behavior. `blue` rounds channels; `viridis` and `magma` floor them.
 Physical-axis corrections and cursor/track behavior remain separate product work.
 
 ## Commit-pinned consumers
