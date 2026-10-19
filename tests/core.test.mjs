@@ -103,12 +103,15 @@ test('stacked frames share the height left after the gaps', () => {
     { left: 40, top: 8, width: 100, height: 28 }, { left: 40, top: 40, width: 100, height: 28 }, { left: 40, top: 72, width: 100, height: 28 },
   ]);
   assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 10 }, 1, 4), [{ left: 0, top: 0, width: 10, height: 10 }]);
+  assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 10 }, 0, 4), []);
+  assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 4 }, 3, 4).map(frame => frame.height), [0, 0, 0]);
 });
 test('an axis title that does not fit falls back to its bracketed unit', () => {
   const measure = text => text.length * 5;
   assert.equal(fittedAxisTitle('Phase [°]', 60, measure), 'Phase [°]');
   assert.equal(fittedAxisTitle('Phase [°]', 30, measure), '°');
   assert.equal(fittedAxisTitle('Spectrum amplitude level [dB SPL]', 60, measure), 'dB SPL');
+  // A title with no bracketed unit has nothing shorter to fall back to.
   assert.equal(fittedAxisTitle('γ²', 5, measure), 'γ²');
 });
 test('value axes right-align ticks against the frame and turn the title along the gutter', () => {
@@ -123,6 +126,13 @@ test('value axes right-align ticks against the frame and turn the title along th
   assert.deepEqual(calls.filter(call => call[0] === 'translate' || call[0] === 'rotate'), [['translate', 7, 50], ['rotate', -Math.PI / 2]]);
   assert.equal(calls[0][0], 'save');
   assert.equal(calls.at(-1)[0], 'restore');
+});
+test('an empty title draws only the ticks, in the font given', () => {
+  const { ctx, calls } = recorder();
+  drawValueAxis(ctx, { left: 48, top: 0, width: 100, height: 80 }, [{ text: '1', fraction: 1 }], '', { color: '#888', titleX: 7, font: '10px serif' });
+  assert.deepEqual(calls.filter(call => call[0] === 'fillText').map(call => call[1]), ['1']);
+  assert.ok(!calls.some(call => call[0] === 'rotate'));
+  assert.equal(ctx.font, '10px serif');
 });
 test('the crosshair draws a horizontal line only with a value', () => {
   const frame = { left: 40, top: 8, width: 100, height: 50 };

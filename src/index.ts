@@ -143,10 +143,10 @@ export type ValueAxisStyle = Readonly<{
 export const PLOT_FONT = '9px monospace';
 /** `count` frames of equal height stacked top to bottom inside `frame`, `gap` apart. */
 export function stackFrames(frame: PlotFrame, count: number, gap: number): PlotFrame[] {
-    const height = (frame.height - gap * Math.max(count - 1, 0)) / Math.max(count, 1);
+    const height = Math.max(0, (frame.height - gap * Math.max(count - 1, 0)) / Math.max(count, 1));
     return Array.from({ length: count }, (_, i) => ({ left: frame.left, top: frame.top + i * (height + gap), width: frame.width, height }));
 }
-/** The title itself when it fits along `length`, else its bracketed unit, so `Phase [°]` becomes `°` in a short lane. */
+/** The title itself when it fits along `length`, else its bracketed unit, so `Phase [°]` becomes `°` in a short lane; the unit is drawn even if it still does not fit. */
 export function fittedAxisTitle(title: string, length: number, measure: (text: string) => number): string {
     if (measure(title) <= length)
         return title;
