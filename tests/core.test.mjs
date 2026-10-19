@@ -104,7 +104,7 @@ test('stacked frames share the height left after the gaps', () => {
   ]);
   assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 10 }, 1, 4), [{ left: 0, top: 0, width: 10, height: 10 }]);
   assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 10 }, 0, 4), []);
-  assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 4 }, 3, 4).map(frame => frame.height), [0, 0, 0]);
+  assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 4 }, 3, 4).map(frame => [frame.top, frame.height]), [[0, 0], [2, 0], [4, 0]]);
 });
 test('an axis title that does not fit falls back to its bracketed unit', () => {
   const measure = text => text.length * 5;
