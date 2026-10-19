@@ -11,7 +11,8 @@ stacked lanes, cursor crosshairs and readout lines. Runtime dependencies: zero.
 The plot helpers draw through `PlotContext`, a structural subset of a 2D canvas
 context, so no DOM types are needed. React, VS Code, canvas elements, Python,
 DSP, workers and persistence stay in consumers.
-The initial kernel is byte-identical to the merged Analyzer PR207 implementation;
+The initial raster kernel is byte-identical to the merged Analyzer PR207 implementation
+(the plot helpers were added here later);
 see [NOTICE.md](NOTICE.md) for preserved source history and attribution.
 
 ## Build and test
