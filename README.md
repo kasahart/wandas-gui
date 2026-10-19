@@ -5,8 +5,12 @@ A small, framework-independent TypeScript rendering kernel shared by
 [ASD Insight](https://github.com/kasahart/asd-insight).
 
 It provides max pooling over selected spectrogram cells, RGBA raster generation,
-palette interpolation and shared range/level types. Runtime dependencies: zero.
-React, VS Code, Canvas, Python, DSP, workers and persistence stay in consumers.
+palette interpolation, shared range/level types, and the plot chrome every
+consumer plot draws the same way: value axes with a turned quantity title,
+stacked lanes, cursor crosshairs and readout lines. Runtime dependencies: zero.
+The plot helpers draw through `PlotContext`, a structural subset of a 2D canvas
+context, so no DOM types are needed. React, VS Code, canvas elements, Python,
+DSP, workers and persistence stay in consumers.
 The initial kernel is byte-identical to the merged Analyzer PR207 implementation;
 see [NOTICE.md](NOTICE.md) for preserved source history and attribution.
 

@@ -6,3 +6,8 @@ void pixels;
 // @ts-expect-error References carry a unit name, not a scalar.
 const invalid: Level = { quantity: 'pressure', unit: 'dB SPL', axisLabel: 'SPL', referenceUnit: 1 };
 void invalid;
+import { drawCrosshair, drawValueAxis, stackFrames, type PlotContext } from '@wandas/gui-core';
+declare const plotContext: PlotContext;
+const [lane] = stackFrames({ left: 40, top: 8, width: 100, height: 60 }, 3, 4);
+drawValueAxis(plotContext, lane, [{ text: '0', fraction: 1 }], 'Gain [dB]', { color: '#888', titleX: 7 });
+drawCrosshair(plotContext, lane, 50, null, '#fff', '#fff');

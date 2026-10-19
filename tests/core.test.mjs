@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { rasterize, normalizedColor, blue, viridis, magma } from '@wandas/gui-core';
+import { rasterize, normalizedColor, blue, viridis, magma, stackFrames, fittedAxisTitle, drawValueAxis, drawCrosshair, readoutText } from '@wandas/gui-core';
 const require = createRequire(import.meta.url);
 const plan = { columns: [[0, 1], [1, 2]], rows: [[0, 1], [1, 2]] };
 const limits = { min: -100, max: 0 };
@@ -87,5 +87,53 @@ test('ESM and CommonJS package entrypoints expose identical behavior', () => {
   const source = { layout: 'flat', values: [-100, 0, -50, -75], bins: 2 };
   assert.deepEqual(cjs.rasterize(source, plan, limits, cjs.blue), rasterize(source, plan, limits, blue));
   assert.deepEqual(cjs.normalizedColor(0.5, cjs.magma), normalizedColor(0.5, magma));
-  assert.deepEqual(Object.keys(cjs).sort(), ['blue', 'magma', 'normalizedColor', 'rasterize', 'viridis']);
+  assert.deepEqual(Object.keys(cjs).sort(), ['PLOT_FONT', 'blue', 'drawCrosshair', 'drawValueAxis', 'fittedAxisTitle', 'magma', 'normalizedColor', 'rasterize', 'readoutText', 'stackFrames', 'viridis']);
+});
+
+function recorder() {
+  const calls = [];
+  const ctx = { fillStyle: '', strokeStyle: '', font: '', lineWidth: 0, textAlign: 'left', textBaseline: 'top', measureText: text => ({ width: text.length * 5 }) };
+  for (const name of ['save', 'restore', 'translate', 'rotate', 'beginPath', 'moveTo', 'lineTo', 'stroke', 'setLineDash'])
+    ctx[name] = (...args) => calls.push([name, ...args]);
+  ctx.fillText = (text, x, y) => calls.push(['fillText', text, x, y, ctx.textAlign, ctx.textBaseline, ctx.fillStyle]);
+  return { ctx, calls };
+}
+test('stacked frames share the height left after the gaps', () => {
+  assert.deepEqual(stackFrames({ left: 40, top: 8, width: 100, height: 92 }, 3, 4), [
+    { left: 40, top: 8, width: 100, height: 28 }, { left: 40, top: 40, width: 100, height: 28 }, { left: 40, top: 72, width: 100, height: 28 },
+  ]);
+  assert.deepEqual(stackFrames({ left: 0, top: 0, width: 10, height: 10 }, 1, 4), [{ left: 0, top: 0, width: 10, height: 10 }]);
+});
+test('an axis title that does not fit falls back to its bracketed unit', () => {
+  const measure = text => text.length * 5;
+  assert.equal(fittedAxisTitle('Phase [°]', 60, measure), 'Phase [°]');
+  assert.equal(fittedAxisTitle('Phase [°]', 30, measure), '°');
+  assert.equal(fittedAxisTitle('Spectrum amplitude level [dB SPL]', 60, measure), 'dB SPL');
+  assert.equal(fittedAxisTitle('γ²', 5, measure), 'γ²');
+});
+test('value axes right-align ticks against the frame and turn the title along the gutter', () => {
+  const { ctx, calls } = recorder();
+  drawValueAxis(ctx, { left: 48, top: 10, width: 100, height: 80 }, [{ text: '0', fraction: 1 }, { text: '-30', fraction: 0.5 }, { text: '-60', fraction: 0 }], 'Gain [dB]', { color: '#888', titleX: 7 });
+  assert.deepEqual(calls.filter(call => call[0] === 'fillText'), [
+    ['fillText', '0', 46, 10, 'right', 'top', '#888'],
+    ['fillText', '-30', 46, 50, 'right', 'middle', '#888'],
+    ['fillText', '-60', 46, 90, 'right', 'bottom', '#888'],
+    ['fillText', 'Gain [dB]', 0, 0, 'center', 'middle', '#888'],
+  ]);
+  assert.deepEqual(calls.filter(call => call[0] === 'translate' || call[0] === 'rotate'), [['translate', 7, 50], ['rotate', -Math.PI / 2]]);
+  assert.equal(calls[0][0], 'save');
+  assert.equal(calls.at(-1)[0], 'restore');
+});
+test('the crosshair draws a horizontal line only with a value', () => {
+  const frame = { left: 40, top: 8, width: 100, height: 50 };
+  const lines = y => {
+    const { ctx, calls } = recorder();
+    drawCrosshair(ctx, frame, 70, y, 'white', 'red');
+    return calls.filter(call => call[0] === 'moveTo' || call[0] === 'lineTo');
+  };
+  assert.deepEqual(lines(null), [['moveTo', 70, 8], ['lineTo', 70, 58]]);
+  assert.deepEqual(lines(20), [['moveTo', 70, 8], ['lineTo', 70, 58], ['moveTo', 40, 20], ['lineTo', 140, 20]]);
+});
+test('readouts join their parts in one order', () => {
+  assert.equal(readoutText(['ch1', '1.20 kHz', '-3.2 dB', '45°', 'γ² 0.98']), 'ch1 / 1.20 kHz / -3.2 dB / 45° / γ² 0.98');
 });
